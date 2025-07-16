@@ -36,6 +36,8 @@ export function DashboardClient({ user }: DashboardClientProps) {
   const [orders, setOrders] = useState<Order[]>([]);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [orderForm, setOrderForm] = useState({
     size: '',
     quantity: 1,
@@ -88,8 +90,12 @@ export function DashboardClient({ user }: DashboardClientProps) {
 
   const handlePlaceOrder = async (event: React.FormEvent) => {
     event.preventDefault();
+    setIsSubmitting(true);
     
-    if (!selectedProduct) return;
+    if (!selectedProduct) {
+      setIsSubmitting(false);
+      return;
+    }
 
     const orderData = {
       userId: 'user-current', // In a real app, use user.id
@@ -112,6 +118,8 @@ export function DashboardClient({ user }: DashboardClientProps) {
     } catch (error) {
       console.error('Failed to place order:', error);
       setSuccessMessage('Failed to place order. Please try again.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -323,8 +331,12 @@ export function DashboardClient({ user }: DashboardClientProps) {
               <Button type="button" variant="outline" onClick={handleCloseDialog}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={!orderForm.size || !orderForm.address}>
-                Place Order
+              <Button 
+                type="submit" 
+                disabled={!orderForm.size || !orderForm.address || isSubmitting}
+                loading={isSubmitting}
+              >
+                {isSubmitting ? 'Placing Order...' : 'Place Order'}
               </Button>
             </DialogFooter>
           </form>

@@ -36,6 +36,10 @@ export default function AdminDashboardPage() {
   const [isEditMode, setIsEditMode] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
 
   // Check admin authentication
   useEffect(() => {
@@ -71,20 +75,23 @@ export default function AdminDashboardPage() {
 
   const handleProductSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const formData = new FormData(event.currentTarget);
+    setIsSubmitting(true);
+    setError('');
     
-    const productData = {
-      name: formData.get('name') as string,
-      description: formData.get('description') as string,
-      image: formData.get('image') as string,
-      hint: formData.get('hint') as string,
-      price: formData.get('price') as string,
-      priceValue: parsePrice(formData.get('price') as string),
-      sizes: (formData.get('sizes') as string).split(',').map(s => s.trim()),
-      category: formData.get('category') as string,
-    };
-
     try {
+      const formData = new FormData(event.currentTarget);
+      
+      const productData = {
+        name: formData.get('name') as string,
+        description: formData.get('description') as string,
+        image: formData.get('image') as string,
+        hint: formData.get('hint') as string,
+        price: formData.get('price') as string,
+        priceValue: parsePrice(formData.get('price') as string),
+        sizes: (formData.get('sizes') as string).split(',').map(s => s.trim()),
+        category: formData.get('category') as string,
+      };
+
       if (isEditMode && selectedProduct) {
         const updatedProduct = await updateProduct(selectedProduct.id, productData);
         if (updatedProduct) {
@@ -104,6 +111,8 @@ export default function AdminDashboardPage() {
     } catch (err) {
       console.error('Error saving product:', err);
       setError('Failed to save product. Please try again.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -114,6 +123,9 @@ export default function AdminDashboardPage() {
   };
 
   const handleDeleteProduct = async (productId: string) => {
+    setDeletingId(productId);
+    setError('');
+    
     try {
       const success = await deleteProduct(productId);
       if (success) {
@@ -125,6 +137,8 @@ export default function AdminDashboardPage() {
     } catch (error) {
       console.error('Error deleting product:', error);
       setError('Failed to delete product.');
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -135,6 +149,9 @@ export default function AdminDashboardPage() {
   };
 
   const handleUpdateOrderStatus = async (orderId: string, status: Order['status']) => {
+    setUpdatingOrderId(orderId);
+    setError('');
+    
     try {
       const updatedOrder = await updateOrderStatus(orderId, status);
       if (updatedOrder) {
@@ -146,6 +163,8 @@ export default function AdminDashboardPage() {
     } catch (error) {
       console.error('Error updating order status:', error);
       setError('Failed to update order status.');
+    } finally {
+      setUpdatingOrderId(null);
     }
   };
 
@@ -314,6 +333,7 @@ export default function AdminDashboardPage() {
                               onValueChange={(value: Order['status']) => 
                                 handleUpdateOrderStatus(order.id, value)
                               }
+                              disabled={updatingOrderId === order.id}
                             >
                               <SelectTrigger className="w-[130px]">
                                 <SelectValue />
@@ -325,6 +345,9 @@ export default function AdminDashboardPage() {
                                 <SelectItem value="Cancelled">Cancelled</SelectItem>
                               </SelectContent>
                             </Select>
+                            {updatingOrderId === order.id && (
+                              <div className="text-xs text-muted-foreground mt-1">Updating...</div>
+                            )}
                           </TableCell>
                         </TableRow>
                       ))}
@@ -390,8 +413,11 @@ export default function AdminDashboardPage() {
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>
                                   <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                  <AlertDialogAction onClick={() => handleDeleteProduct(product.id)}>
-                                    Delete
+                                  <AlertDialogAction 
+                                    onClick={() => handleDeleteProduct(product.id)}
+                                    disabled={deletingId === product.id}
+                                  >
+                                    {deletingId === product.id ? 'Deleting...' : 'Delete'}
                                   </AlertDialogAction>
                                 </AlertDialogFooter>
                               </AlertDialogContent>
@@ -498,8 +524,11 @@ export default function AdminDashboardPage() {
               <Button type="button" variant="outline" onClick={closeDialog}>
                 Cancel
               </Button>
-              <Button type="submit">
-                {isEditMode ? 'Update Product' : 'Add Product'}
+              <Button type="submit" loading={isSubmitting}>
+                {isSubmitting 
+                  ? (isEditMode ? 'Updating...' : 'Adding...') 
+                  : (isEditMode ? 'Update Product' : 'Add Product')
+                }
               </Button>
             </DialogFooter>
           </form>

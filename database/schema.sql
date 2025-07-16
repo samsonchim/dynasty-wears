@@ -4,6 +4,26 @@
 -- Enable UUID extension (required for uuid_generate_v4())
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
+-- Users table
+CREATE TABLE IF NOT EXISTS users (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  email VARCHAR(255) UNIQUE NOT NULL,
+  password_hash VARCHAR(255) NOT NULL,
+  first_name VARCHAR(100) NOT NULL,
+  last_name VARCHAR(100) NOT NULL,
+  phone VARCHAR(20),
+  student_id VARCHAR(50),
+  faculty VARCHAR(255),
+  department VARCHAR(255),
+  level VARCHAR(10),
+  address TEXT,
+  role VARCHAR(20) CHECK (role IN ('student', 'admin')) DEFAULT 'student',
+  is_active BOOLEAN DEFAULT true,
+  email_verified BOOLEAN DEFAULT false,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- Products table
 CREATE TABLE IF NOT EXISTS products (
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
@@ -23,7 +43,7 @@ CREATE TABLE IF NOT EXISTS products (
 CREATE TABLE IF NOT EXISTS orders (
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   order_number VARCHAR(50) UNIQUE NOT NULL,
-  user_id VARCHAR(255) NOT NULL,
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
   user_email VARCHAR(255) NOT NULL,
   product_id UUID REFERENCES products(id) ON DELETE CASCADE,
   product_name VARCHAR(255) NOT NULL,
@@ -78,6 +98,11 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Triggers for updated_at
+CREATE TRIGGER update_users_updated_at
+  BEFORE UPDATE ON users
+  FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at_column();
+
 CREATE TRIGGER update_products_updated_at
   BEFORE UPDATE ON products
   FOR EACH ROW
@@ -88,24 +113,21 @@ CREATE TRIGGER update_orders_updated_at
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
 
--- Insert sample products
-INSERT INTO products (name, description, image, hint, price, price_value, sizes, category) VALUES
-('Faculty of Science Shirt', 'Crisp white shirt with embroidered FOS logo.', 'https://placehold.co/400x400.png', 'white shirt', '₦10,000', 10000, ARRAY['XS', 'S', 'M', 'L', 'XL', 'XXL'], 'Faculty of Science'),
-('Faculty of Management Sciences Shirt', 'Professional navy blue shirt for Management Sciences students.', 'https://placehold.co/400x400.png', 'navy blue shirt', '₦12,500', 12500, ARRAY['XS', 'S', 'M', 'L', 'XL', 'XXL'], 'Faculty of Management Sciences'),
-('Faculty of Engineering Shirt', 'Durable grey shirt perfect for engineering students.', 'https://placehold.co/400x400.png', 'grey engineering shirt', '₦11,000', 11000, ARRAY['XS', 'S', 'M', 'L', 'XL', 'XXL'], 'Faculty of Engineering'),
-('Faculty of Education Shirt', 'Comfortable light blue shirt for Education faculty.', 'https://placehold.co/400x400.png', 'light blue shirt', '₦9,500', 9500, ARRAY['XS', 'S', 'M', 'L', 'XL', 'XXL'], 'Faculty of Education'),
-('Faculty of Arts Shirt', 'Elegant burgundy shirt representing Arts students.', 'https://placehold.co/400x400.png', 'burgundy arts shirt', '₦10,500', 10500, ARRAY['XS', 'S', 'M', 'L', 'XL', 'XXL'], 'Faculty of Arts'),
-('Faculty of Law Shirt', 'Distinguished black shirt for Law students.', 'https://placehold.co/400x400.png', 'black law shirt', '₦13,000', 13000, ARRAY['XS', 'S', 'M', 'L', 'XL', 'XXL'], 'Faculty of Law');
-
--- Insert sample orders (optional - for testing)
-INSERT INTO orders (user_id, user_email, product_id, product_name, size, quantity, total_amount, payment_method, delivery_address, status, created_at, updated_at) VALUES
-('user-1', 'john@example.com', (SELECT id FROM products WHERE name = 'Faculty of Science Shirt'), 'Faculty of Science Shirt', 'M', 1, 10000, 'transfer', '123 Student Hostel, University Campus', 'Delivered', '2023-10-26T10:30:00Z', '2023-10-28T14:20:00Z'),
-('user-2', 'jane@example.com', (SELECT id FROM products WHERE name = 'Faculty of Management Sciences Shirt'), 'Faculty of Management Sciences Shirt', 'L', 1, 12500, 'cash', '456 Student Hostel, University Campus', 'Paid', '2023-10-28T09:15:00Z', '2023-10-28T09:15:00Z'),
-('user-3', 'mike@example.com', (SELECT id FROM products WHERE name = 'Faculty of Engineering Shirt'), 'Faculty of Engineering Shirt', 'XL', 1, 11000, 'transfer', '789 Student Hostel, University Campus', 'Pending', '2023-11-01T16:45:00Z', '2023-11-01T16:45:00Z');
 
 -- Enable Row Level Security (RLS)
+ALTER TABLE users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE products ENABLE ROW LEVEL SECURITY;
 ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policies for users (users can read/update their own data, admins can access all)
+CREATE POLICY "Users can view their own profile" ON users
+  FOR SELECT USING (true);
+
+CREATE POLICY "Users can update their own profile" ON users
+  FOR UPDATE USING (true);
+
+CREATE POLICY "Users can be created" ON users
+  FOR INSERT WITH CHECK (true);
 
 -- RLS Policies for products (allow read for everyone, write for admin only)
 CREATE POLICY "Products are viewable by everyone" ON products

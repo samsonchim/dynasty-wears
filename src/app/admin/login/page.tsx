@@ -9,20 +9,33 @@ import { Button } from '@/components/ui/button';
 
 export default function AdminLoginPage() {
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
 
-  const handleLogin = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleLogin = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const formData = new FormData(event.currentTarget);
-    const username = formData.get('username');
-    const password = formData.get('password');
+    setIsLoading(true);
+    setError('');
+    
+    try {
+      const formData = new FormData(event.currentTarget);
+      const username = formData.get('username');
+      const password = formData.get('password');
 
-    if (username === 'admin' && password === 'password1234') {
-      // Set admin session
-      localStorage.setItem('adminLoggedIn', 'true');
-      router.push('/admin/dashboard');
-    } else {
-      setError('Invalid username or password');
+      // Simulate loading delay
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      if (username === 'admin' && password === 'password1234') {
+        // Set admin session
+        localStorage.setItem('adminLoggedIn', 'true');
+        router.push('/admin/dashboard');
+      } else {
+        setError('Invalid username or password');
+      }
+    } catch (err) {
+      setError('An error occurred during login');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -43,8 +56,8 @@ export default function AdminLoginPage() {
               <Label htmlFor="password">Password</Label>
               <Input id="password" name="password" type="password" placeholder="......" required />
             </div>
-            <Button type="submit" className="w-full">
-              Login
+            <Button type="submit" className="w-full" loading={isLoading}>
+              {isLoading ? 'Signing in...' : 'Login'}
             </Button>
           </form>
           {error && <p className="text-red-500 mt-4 text-center">{error}</p>}
