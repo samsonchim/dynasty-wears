@@ -10,18 +10,25 @@ export function Header() {
         <span className="text-xl font-semibold font-headline">Dynasty</span>
       </Link>
       <nav className="ml-auto flex items-center gap-4 sm:gap-6">
-        <Button variant="ghost" asChild>
-          <Link href="/login">
-            <LogIn />
+        <Link href="/login">
+          <Button variant="ghost" className="flex items-center gap-2">
+            <LogIn className="h-4 w-4" />
             Login
-          </Link>
-        </Button>
-        <Button className="bg-accent text-accent-foreground hover:bg-accent/90" asChild>
-          <Link href="/dashboard">
-            <ShoppingCart />
+          </Button>
+        </Link>
+        <Link href="/dashboard">
+          <Button className="bg-accent text-accent-foreground hover:bg-accent/90 flex items-center gap-2">
+            <ShoppingCart className="h-4 w-4" />
             Shop Now
-          </Link>
-        </Button>
+          </Button>
+        </Link>
+        {/* Admin link - discrete */}
+        <Link 
+          href="/admin/login" 
+          className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+        >
+          Admin
+        </Link>
       </nav>
     </header>
   );

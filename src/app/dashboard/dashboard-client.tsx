@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { DashboardHeader } from '@/components/dashboard/header';
 import { Footer } from '@/components/landing/footer';
@@ -15,72 +15,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Textarea } from '@/components/ui/textarea';
 import type { User } from '@supabase/supabase-js';
-
-const orders = [
-  { id: 'ORD001', date: '2023-10-26', status: 'Delivered', total: '₦15,000' },
-  { id: 'ORD002', date: '2023-10-28', status: 'Paid', total: '₦12,500' },
-  { id: 'ORD003', date: '2023-11-01', status: 'Unpaid', total: '₦12,500' },
-];
-
-const products = [
-  {
-    name: 'Faculty of Science Shirt',
-    description: 'Crisp white shirt with embroidered FOS logo.',
-    image: 'https://placehold.co/400x400.png',
-    hint: 'white shirt',
-    price: '₦10,000',
-    sizes: ['XS', 'S', 'M', 'L', 'XL', 'XXL']
-  },
-  {
-    name: 'Faculty of Management Sciences Shirt',
-    description: 'Professional navy blue shirt for Management Sciences students.',
-    image: 'https://placehold.co/400x400.png',
-    hint: 'navy blue shirt',
-    price: '₦12,500',
-    sizes: ['XS', 'S', 'M', 'L', 'XL', 'XXL']
-  },
-  {
-    name: 'Faculty of Engineering Shirt',
-    description: 'Durable grey shirt perfect for engineering students.',
-    image: 'https://placehold.co/400x400.png',
-    hint: 'grey engineering shirt',
-    price: '₦11,000',
-    sizes: ['XS', 'S', 'M', 'L', 'XL', 'XXL']
-  },
-  {
-    name: 'Faculty of Education Shirt',
-    description: 'Comfortable light blue shirt for Education faculty.',
-    image: 'https://placehold.co/400x400.png',
-    hint: 'light blue shirt',
-    price: '₦9,500',
-    sizes: ['XS', 'S', 'M', 'L', 'XL', 'XXL']
-  },
-  {
-    name: 'Faculty of Arts Shirt',
-    description: 'Elegant burgundy shirt representing Arts students.',
-    image: 'https://placehold.co/400x400.png',
-    hint: 'burgundy arts shirt',
-    price: '₦10,500',
-    sizes: ['XS', 'S', 'M', 'L', 'XL', 'XXL']
-  },
-  {
-    name: 'Faculty of Law Shirt',
-    description: 'Distinguished black shirt for Law students.',
-    image: 'https://placehold.co/400x400.png',
-    hint: 'black law shirt',
-    price: '₦13,000',
-    sizes: ['XS', 'S', 'M', 'L', 'XL', 'XXL']
-  }
-];
-
-interface Product {
-  name: string;
-  description: string;
-  image: string;
-  hint: string;
-  price: string;
-  sizes: string[];
-}
+import { 
+  getAllProducts, 
+  getOrdersByUser, 
+  addOrder, 
+  formatPrice,
+  type Product, 
+  type Order 
+} from '@/lib/data';
 
 interface DashboardClientProps {
   user: User;
@@ -90,17 +32,87 @@ export function DashboardClient({ user }: DashboardClientProps) {
   console.log('Rendering DashboardClient');
   console.log('User:', user);
 
+  const [products, setProducts] = useState<Product[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [orderForm, setOrderForm] = useState({
+    size: '',
+    quantity: 1,
+    paymentMethod: 'transfer' as 'transfer' | 'cash',
+    address: ''
+  });
+  const [successMessage, setSuccessMessage] = useState('');
+
+  // Load data on component mount
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const [productsData, ordersData] = await Promise.all([
+          getAllProducts(),
+          getOrdersByUser('user-current') // In a real app, use actual user.id
+        ]);
+        setProducts(productsData);
+        setOrders(ordersData);
+      } catch (error) {
+        console.error('Error loading data:', error);
+      }
+    };
+
+    loadData();
+  }, []);
 
   const handleBuyClick = (product: Product) => {
     setSelectedProduct(product);
     setIsDialogOpen(true);
+    setSuccessMessage('');
   };
 
   const handleCloseDialog = () => {
     setIsDialogOpen(false);
     setSelectedProduct(null);
+    setOrderForm({
+      size: '',
+      quantity: 1,
+      paymentMethod: 'transfer',
+      address: ''
+    });
+  };
+
+  const handleFormChange = (field: string, value: any) => {
+    setOrderForm(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const handlePlaceOrder = async (event: React.FormEvent) => {
+    event.preventDefault();
+    
+    if (!selectedProduct) return;
+
+    const orderData = {
+      userId: 'user-current', // In a real app, use user.id
+      userEmail: user.email || 'guest@example.com',
+      productId: selectedProduct.id,
+      productName: selectedProduct.name,
+      size: orderForm.size,
+      quantity: orderForm.quantity,
+      totalAmount: selectedProduct.priceValue * orderForm.quantity,
+      paymentMethod: orderForm.paymentMethod,
+      deliveryAddress: orderForm.address,
+      status: 'Pending' as const,
+    };
+
+    try {
+      const newOrder = await addOrder(orderData);
+      setOrders(prev => [newOrder, ...prev]);
+      setSuccessMessage('Order placed successfully! Check your orders below.');
+      handleCloseDialog();
+    } catch (error) {
+      console.error('Failed to place order:', error);
+      setSuccessMessage('Failed to place order. Please try again.');
+    }
   };
 
   return (
@@ -118,6 +130,13 @@ export function DashboardClient({ user }: DashboardClientProps) {
             </p>
           </div>
 
+          {/* Success Message */}
+          {successMessage && (
+            <div className="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-md">
+              {successMessage}
+            </div>
+          )}
+
           {/* Recent Orders */}
           <Card>
             <CardHeader>
@@ -125,38 +144,52 @@ export function DashboardClient({ user }: DashboardClientProps) {
               <CardDescription>Track your recent purchases and order status.</CardDescription>
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Order ID</TableHead>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Total</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {orders.map((order) => (
-                    <TableRow key={order.id}>
-                      <TableCell className="font-medium">{order.id}</TableCell>
-                      <TableCell>{order.date}</TableCell>
-                      <TableCell>
-                        <Badge
-                          variant={
-                            order.status === 'Delivered'
-                              ? 'default'
-                              : order.status === 'Paid'
-                              ? 'secondary'
-                              : 'destructive'
-                          }
-                        >
-                          {order.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right">{order.total}</TableCell>
+              {orders.length > 0 ? (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Order ID</TableHead>
+                      <TableHead>Product</TableHead>
+                      <TableHead>Size</TableHead>
+                      <TableHead>Quantity</TableHead>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Total</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {orders.map((order) => (
+                      <TableRow key={order.id}>
+                        <TableCell className="font-medium">{order.orderNumber}</TableCell>
+                        <TableCell>{order.productName}</TableCell>
+                        <TableCell>{order.size}</TableCell>
+                        <TableCell>{order.quantity}</TableCell>
+                        <TableCell>{new Date(order.createdAt).toLocaleDateString()}</TableCell>
+                        <TableCell>
+                          <Badge
+                            variant={
+                              order.status === 'Delivered'
+                                ? 'default'
+                                : order.status === 'Paid'
+                                ? 'secondary'
+                                : order.status === 'Pending'
+                                ? 'outline'
+                                : 'destructive'
+                            }
+                          >
+                            {order.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">{formatPrice(order.totalAmount)}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              ) : (
+                <p className="text-muted-foreground text-center py-8">
+                  No orders yet. Start shopping to see your orders here!
+                </p>
+              )}
             </CardContent>
           </Card>
 
@@ -168,8 +201,8 @@ export function DashboardClient({ user }: DashboardClientProps) {
             </CardHeader>
             <CardContent>
               <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                {products.map((product, index) => (
-                  <Card key={index}>
+                {products.map((product) => (
+                  <Card key={product.id}>
                     <CardHeader className="p-0">
                       <Image
                         src={product.image}
@@ -182,10 +215,13 @@ export function DashboardClient({ user }: DashboardClientProps) {
                     </CardHeader>
                     <CardContent className="p-4">
                       <CardTitle className="text-lg">{product.name}</CardTitle>
-                      <CardDescription className="mt-2">
+                      <CardDescription className="mt-2 mb-3">
                         {product.description}
                       </CardDescription>
-                      <div className="mt-4 flex items-center justify-between">
+                      <div className="text-sm text-muted-foreground mb-4">
+                        Category: {product.category}
+                      </div>
+                      <div className="flex items-center justify-between">
                         <span className="text-2xl font-bold">{product.price}</span>
                         <Button onClick={() => handleBuyClick(product)}>
                           Buy Now
@@ -210,12 +246,16 @@ export function DashboardClient({ user }: DashboardClientProps) {
               Complete your order for {selectedProduct?.name}
             </DialogDescription>
           </DialogHeader>
-          <form className="space-y-4">
+          <form onSubmit={handlePlaceOrder} className="space-y-4">
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="size" className="text-right">
                 Size
               </Label>
-              <Select>
+              <Select 
+                value={orderForm.size} 
+                onValueChange={(value) => handleFormChange('size', value)}
+                required
+              >
                 <SelectTrigger className="col-span-3">
                   <SelectValue placeholder="Select size" />
                 </SelectTrigger>
@@ -235,14 +275,19 @@ export function DashboardClient({ user }: DashboardClientProps) {
               <Input
                 id="quantity"
                 type="number"
-                defaultValue="1"
+                value={orderForm.quantity}
+                onChange={(e) => handleFormChange('quantity', parseInt(e.target.value))}
                 min="1"
                 className="col-span-3"
+                required
               />
             </div>
             <div className="space-y-3">
               <Label>Payment Method</Label>
-              <RadioGroup defaultValue="transfer">
+              <RadioGroup 
+                value={orderForm.paymentMethod} 
+                onValueChange={(value: 'transfer' | 'cash') => handleFormChange('paymentMethod', value)}
+              >
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="transfer" id="transfer" />
                   <Label htmlFor="transfer">Bank Transfer</Label>
@@ -260,14 +305,27 @@ export function DashboardClient({ user }: DashboardClientProps) {
               <Textarea
                 id="address"
                 placeholder="Your delivery address"
+                value={orderForm.address}
+                onChange={(e) => handleFormChange('address', e.target.value)}
                 className="col-span-3"
+                required
               />
             </div>
+            {selectedProduct && (
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label className="text-right">Total:</Label>
+                <div className="col-span-3 text-lg font-bold">
+                  {formatPrice(selectedProduct.priceValue * orderForm.quantity)}
+                </div>
+              </div>
+            )}
             <DialogFooter>
               <Button type="button" variant="outline" onClick={handleCloseDialog}>
                 Cancel
               </Button>
-              <Button type="submit">Place Order</Button>
+              <Button type="submit" disabled={!orderForm.size || !orderForm.address}>
+                Place Order
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>
