@@ -37,11 +37,11 @@ export default function AdminLoginPage() {
           <form onSubmit={handleLogin} className="grid gap-4">
             <div className="grid gap-2">
               <Label htmlFor="username">Username</Label>
-              <Input id="username" name="username" type="text" placeholder="admin" required />
+              <Input id="username" name="username" type="text" placeholder="......" required />
             </div>
             <div className="grid gap-2">
               <Label htmlFor="password">Password</Label>
-              <Input id="password" name="password" type="password" placeholder="password1234" required />
+              <Input id="password" name="password" type="password" placeholder="......" required />
             </div>
             <Button type="submit" className="w-full">
               Login

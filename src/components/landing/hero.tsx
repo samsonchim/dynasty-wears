@@ -2,6 +2,7 @@
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
+import dynastyLogo from "@/app/dynasty.png";
 
 export function Hero() {
   return (
@@ -18,12 +19,12 @@ export function Hero() {
           </div>
         </div>
         <Image
-          src="https://shutterstock.com/image-vector/mockup-dark-blue-longsleeve-buttonup-260nw-2493811421.jpg"
-          alt="Ebonyi State University Student"
-          width={1200}
-          height={800}
-          className="mx-auto rounded-xl object-cover aspect-[3/2] w-full max-w-5xl"
-          data-ai-hint="university students uniform"
+          src={dynastyLogo}
+          alt="Dynasty Departmental Wears - Official Wears for Ebonyi State University"
+          width={500}
+          height={500}
+          className="mx-auto rounded-xl object-contain aspect-square w-full max-w-md"
+          data-ai-hint="dynasty departmental wears logo"
         />
         <div className="flex flex-col gap-2 min-[400px]:flex-row justify-center">
           <Link href="/dashboard">
