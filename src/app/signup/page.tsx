@@ -1,4 +1,8 @@
 
+'use client';
+
+import { useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -8,11 +12,28 @@ import { Header } from '@/components/landing/header';
 import { Footer } from '@/components/landing/footer';
 import { signup } from '@/app/auth/actions';
 
-export default function SignupPage({
-  searchParams,
-}: {
-  searchParams: { message: string };
-}) {
+export default function SignupPage() {
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const message = searchParams?.get('message');
+
+  const handleSignup = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setIsLoading(true);
+    setError('');
+
+    try {
+      const formData = new FormData(event.currentTarget);
+      await signup(formData);
+      // If successful, the signup action will redirect
+    } catch (err: any) {
+      setError(err.message || 'Signup failed. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
   return (
     <div className="flex flex-col min-h-dvh bg-background">
       <Header />
@@ -23,7 +44,7 @@ export default function SignupPage({
             <CardDescription>Create an account to start shopping.</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4">
-            <form className="grid gap-4">
+            <form onSubmit={handleSignup} className="grid gap-4">
               <div className="grid gap-2">
                 <Label htmlFor="username">Username</Label>
                 <Input id="username" name="username" type="text" placeholder="John Doe" required />
@@ -36,13 +57,13 @@ export default function SignupPage({
                 <Label htmlFor="password">Password</Label>
                 <Input id="password" name="password" type="password" required />
               </div>
-              <Button formAction={signup} type="submit" className="w-full">
-                Create Account
+              <Button type="submit" className="w-full" loading={isLoading}>
+                {isLoading ? 'Creating Account...' : 'Create Account'}
               </Button>
             </form>
-            {searchParams?.message && (
+            {(message || error) && (
               <p className="mt-4 p-4 bg-foreground/10 text-foreground text-center rounded-md">
-                {searchParams.message}
+                {error || message}
               </p>
             )}
           </CardContent>

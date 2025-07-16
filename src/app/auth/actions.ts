@@ -42,14 +42,24 @@ export async function signup(formData: FormData) {
     }
   }
 
-  const { error } = await supabase.auth.signUp(data)
+  const { data: authData, error } = await supabase.auth.signUp(data)
 
   if (error) {
-    redirect('/signup?message=Error creating account')
+    redirect('/signup?message=Error creating account: ' + error.message)
   }
 
-  revalidatePath('/', 'layout')
-  redirect('/signup?message=Check your email to continue sign up process')
+  // Check if email confirmation is required
+  if (authData.user && !authData.session) {
+    // Email confirmation required
+    redirect('/signup?message=Please check your email to confirm your account')
+  } else if (authData.user && authData.session) {
+    // User is automatically logged in (email confirmation disabled)
+    revalidatePath('/', 'layout')
+    redirect('/dashboard')
+  } else {
+    // Fallback - redirect to login
+    redirect('/login?message=Account created successfully. Please login.')
+  }
 }
 
 export async function signout() {
